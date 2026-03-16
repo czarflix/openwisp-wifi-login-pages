@@ -70,16 +70,7 @@ export default class Registration extends React.Component {
   }
 
   componentDidMount() {
-    const {
-      orgSlug,
-      settings,
-      setTitle,
-      orgName,
-      language,
-      isAuthenticated,
-      navigate,
-      userData,
-    } = this.props;
+    const {orgSlug, settings, setTitle, orgName, language} = this.props;
     const {setLoading} = this.context;
 
     if (this.redirectAuthenticatedUser()) {
