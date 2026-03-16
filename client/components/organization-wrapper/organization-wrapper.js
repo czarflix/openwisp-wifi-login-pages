@@ -152,23 +152,11 @@ export default class OrganizationWrapper extends React.Component {
                   />
                   <Route
                     path="registration/*"
-                    element={(() => {
-                      if (isAuthenticated && !needsVerifyPhone) {
-                        return <Navigate to={`/${orgSlug}/status`} />;
-                      }
-                      if (isAuthenticated && needsVerifyPhone) {
-                        return (
-                          <Navigate
-                            to={`/${orgSlug}/mobile-phone-verification`}
-                          />
-                        );
-                      }
-                      return (
-                        <Suspense fallback={<Loader />}>
-                          <Registration loading={loading} navigate={navigate} />
-                        </Suspense>
-                      );
-                    })()}
+                    element={
+                      <Suspense fallback={<Loader />}>
+                        <Registration loading={loading} navigate={navigate} />
+                      </Suspense>
+                    }
                   />
                   <Route
                     path="mobile-phone-verification"

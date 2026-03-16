@@ -27,6 +27,7 @@ import redirectToPayment from "../../utils/redirect-to-payment";
 import InfoModal from "../../utils/modal";
 import getPlanSelection from "../../utils/get-plan-selection";
 import getPlans from "../../utils/get-plans";
+import needsVerify from "../../utils/needs-verify";
 
 const PhoneInput = React.lazy(
   () => import(/* webpackChunkName: 'PhoneInput' */ "react-phone-input-2"),
@@ -69,8 +70,26 @@ export default class Registration extends React.Component {
   }
 
   componentDidMount() {
-    const {orgSlug, settings, setTitle, orgName, language} = this.props;
+    const {
+      orgSlug,
+      settings,
+      setTitle,
+      orgName,
+      language,
+      isAuthenticated,
+      navigate,
+      userData,
+    } = this.props;
     const {setLoading} = this.context;
+
+    if (isAuthenticated) {
+      if (needsVerify("mobile_phone", userData, settings)) {
+        navigate(`/${orgSlug}/mobile-phone-verification`);
+      } else {
+        navigate(`/${orgSlug}/status`);
+      }
+      return;
+    }
 
     setTitle(t`REGISTRATION_TITL`, orgName);
 
@@ -904,4 +923,6 @@ Registration.propTypes = {
   setUserData: PropTypes.func.isRequired,
   loading: PropTypes.bool.isRequired,
   navigate: PropTypes.func.isRequired,
+  isAuthenticated: PropTypes.bool.isRequired,
+  userData: PropTypes.object.isRequired,
 };
