@@ -26,7 +26,7 @@ describe("Selenium tests for <Login />", () => {
     // italian language
     const itLangBtn = await getElementByCss(
       driver,
-      "button.header-language-btn.header-desktop-language-btn.header-language-btn-it",
+      "button.header-language-btn.header-language-btn-it",
     );
     await itLangBtn.click();
     username = await getElementByCss(driver, "input#password");
@@ -40,7 +40,7 @@ describe("Selenium tests for <Login />", () => {
     // english language
     const enLangBtn = await getElementByCss(
       driver,
-      "button.header-language-btn.header-desktop-language-btn.header-language-btn-en",
+      "button.header-language-btn.header-language-btn-en",
     );
     await enLangBtn.click();
     username = await getElementByCss(driver, "input#password");
