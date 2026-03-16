@@ -90,18 +90,126 @@ export default class Status extends React.Component {
     }
   }
 
+  resolvePendingPortalState = (userData) => {
+    const {captivePortalSyncAuth, orgSlug, cookies} = this.props;
+    const {
+      mustLogin: userMustLogin,
+      mustLogout: userMustLogout,
+      repeatLogin,
+    } = userData;
+
+    return {
+      mustLogin: this.resolveStoredValue(
+        captivePortalSyncAuth,
+        `${orgSlug}_mustLogin`,
+        userMustLogin,
+        cookies,
+      ),
+      mustLogout: this.resolveStoredValue(
+        captivePortalSyncAuth,
+        `${orgSlug}_mustLogout`,
+        userMustLogout,
+        cookies,
+      ),
+      repeatLogin,
+    };
+  };
+
+  prepareUserInfo = (userData) => {
+    const {settings} = this.props;
+    const {
+      radius_user_token: password,
+      username,
+      email,
+      phone_number,
+      is_active: isActive,
+      method,
+      is_verified: isVerified,
+    } = userData;
+    const userInfo = {
+      status: "",
+      email,
+    };
+
+    if (username !== email && username !== phone_number) {
+      userInfo.username = username;
+    }
+    if (settings.mobile_phone_verification && phone_number) {
+      userInfo.phone_number = phone_number;
+    }
+
+    this.setState({username, password, userInfo}, () => {
+      if (isActive === false) {
+        this.handleLogout(false);
+      }
+    });
+
+    return {isActive, isVerified, method};
+  };
+
+  async handlePendingPortalAction({
+    userData,
+    mustLogin,
+    mustLogout,
+    repeatLogin,
+    method,
+    isVerified,
+  }) {
+    const {captivePortalSyncAuth, cookies, orgSlug, settings} = this.props;
+
+    if (mustLogout) {
+      if (captivePortalSyncAuth) {
+        // In synchronous captive portal authentication, the page reloads
+        // after form submission, so handleLogoutIframe() must be called manually here.
+        // (handleLogout() is already triggered when the user clicks the "Logout" button.)
+        this.setState({loggedOut: mustLogout});
+        this.handleLogoutIframe();
+      } else {
+        await this.handleLogout(false, repeatLogin);
+      }
+      return true;
+    }
+
+    let shouldLogin = mustLogin;
+    if (method === "bank_card" && isVerified === false) {
+      shouldLogin = shouldLogin && settings.payment_requires_internet;
+    }
+
+    if (this.loginFormRef && this.loginFormRef.current && shouldLogin) {
+      this.storeValue(
+        captivePortalSyncAuth,
+        `${orgSlug}_mustLogin`,
+        false,
+        cookies,
+      );
+      this.notifyCpLogin(userData);
+      this.loginFormRef.current.submit();
+      return true;
+    }
+
+    if (!shouldLogin) {
+      // If the user is already logged in, we need to handle the
+      // response from the captive portal.
+      if (captivePortalSyncAuth) {
+        this.handleLogin();
+      }
+      this.finalOperations();
+      return true;
+    }
+
+    return false;
+  }
+
   async componentDidMount() {
     const {
       cookies,
       orgSlug,
-      settings,
       setUserData,
       logout,
       setTitle,
       orgName,
       language,
       navigate,
-      captivePortalSyncAuth,
     } = this.props;
     setTitle(t`STATUS_TITL`, orgName);
     const {setLoading} = this.context;
@@ -148,23 +256,8 @@ export default class Status extends React.Component {
         return;
       }
 
-      const {
-        mustLogin: userMustLogin,
-        mustLogout: userMustLogout,
-        repeatLogin,
-      } = userData;
-      const mustLogin = this.resolveStoredValue(
-        captivePortalSyncAuth,
-        `${orgSlug}_mustLogin`,
-        userMustLogin,
-        cookies,
-      );
-      const mustLogout = this.resolveStoredValue(
-        captivePortalSyncAuth,
-        `${orgSlug}_mustLogout`,
-        userMustLogout,
-        cookies,
-      );
+      const {mustLogin, mustLogout, repeatLogin} =
+        this.resolvePendingPortalState(userData);
       ({userData} = this.props);
       if (userData.password_expired === true) {
         toast.warning(t`PASSWORD_EXPIRED`);
@@ -177,72 +270,21 @@ export default class Status extends React.Component {
         navigate(`/${orgSlug}/change-password`);
         return;
       }
-      const {
-        radius_user_token: password,
-        username,
-        email,
-        phone_number,
-        is_active,
-        method,
-        is_verified: isVerified,
-      } = userData;
-      const userInfo = {};
-      userInfo.status = "";
-      userInfo.email = email;
-      if (username !== email && username !== phone_number) {
-        userInfo.username = username;
-      }
-      if (settings.mobile_phone_verification && phone_number) {
-        userInfo.phone_number = phone_number;
-      }
-      this.setState({username, password, userInfo}, () => {
-        // if the user is being automatically logged in but it's not
-        // active anymore (eg: has been banned)
-        // automatically perform log out
-        if (is_active === false) {
-          this.handleLogout(false);
-        }
-      });
+      const {isActive, isVerified, method} = this.prepareUserInfo(userData);
 
       // stop here if user is banned
-      if (is_active === false) {
+      if (isActive === false) {
         return;
       }
 
-      if (mustLogout) {
-        if (captivePortalSyncAuth) {
-          // In synchronous captive portal authentication, the page reloads
-          // after form submission, so handleLogoutIframe() must be called manually here.
-          // (handleLogout() is already triggered when the user clicks the "Logout" button.)
-          this.setState({loggedOut: mustLogout});
-          this.handleLogoutIframe();
-        } else {
-          await this.handleLogout(false, repeatLogin);
-        }
-        return;
-      }
-
-      let shouldLogin = mustLogin;
-      if (method === "bank_card" && isVerified === false) {
-        shouldLogin = shouldLogin && settings.payment_requires_internet;
-      }
-      if (this.loginFormRef && this.loginFormRef.current && shouldLogin) {
-        this.storeValue(
-          captivePortalSyncAuth,
-          `${orgSlug}_mustLogin`,
-          false,
-          cookies,
-        );
-        this.notifyCpLogin(userData);
-        this.loginFormRef.current.submit();
-      } else if (!shouldLogin) {
-        // If the user is already logged in, we need to handle the
-        // the response from the captive portal.
-        if (captivePortalSyncAuth) {
-          this.handleLogin();
-        }
-        this.finalOperations();
-      }
+      await this.handlePendingPortalAction({
+        userData,
+        mustLogin,
+        mustLogout,
+        repeatLogin,
+        method,
+        isVerified,
+      });
     }
   }
 
