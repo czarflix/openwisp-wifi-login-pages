@@ -124,6 +124,34 @@ browsers may fail to detect successful login when this method is used.
 Set ``captive_portal_sync_auth`` to ``true`` to submit the login form
 synchronously and trigger a full page reload upon authentication:
 
+``captive_portal_api``
+~~~~~~~~~~~~~~~~~~~~~~
+
+Use this optional setting to let the status page query an external RFC
+8908 Captive Portal API endpoint before showing internet-mode-dependent
+information.
+
+When this feature is enabled, WiFi Login Pages will issue a ``GET``
+request to the configured URL with the ``Accept:
+application/captive+json`` header. If the response is valid and
+``captive`` is ``false``, WiFi Login Pages will switch to internet mode.
+If the endpoint is unreachable, returns invalid data, times out, or
+reports ``captive: true``, the current behavior is preserved.
+
+The feature is disabled by default and must be configured explicitly per
+organization.
+
+.. code-block:: yaml
+
+    captive_portal_api:
+      enabled: true
+      url: https://cp.example.org/.well-known/captive-portal
+      timeout: 2000
+
+- ``enabled``: turns the feature on or off. Default: ``false``.
+- ``url``: RFC 8908 endpoint to query. Default: ``null``.
+- ``timeout``: request timeout in milliseconds. Default: ``2000``.
+
 Status Page Settings
 --------------------
 

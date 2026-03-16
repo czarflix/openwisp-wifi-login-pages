@@ -70,6 +70,7 @@ const createTestProps = (props) => ({
     ...defaultConfig.components.captive_portal_logout_form,
   },
   captivePortalSyncAuth: false,
+  captivePortalApi: defaultConfig.components.captive_portal_api || null,
   location: {
     search: "?macaddr=4e:ed:11:2b:17:ae",
   },
@@ -156,6 +157,9 @@ describe("<Status /> rendering", () => {
       organization: {
         configuration: defaultConfig,
       },
+      language: "en",
+      internetMode: false,
+      planExhausted: false,
     };
     const ownProps = {
       cookies: new Cookies(),
@@ -171,11 +175,14 @@ describe("<Status /> rendering", () => {
         defaultConfig.components.captive_portal_login_form,
       captivePortalLogoutForm:
         defaultConfig.components.captive_portal_logout_form,
-      captivePortalSyncAuth: defaultConfig.captive_portal_sync_auth,
+      captivePortalSyncAuth: defaultConfig.components.captive_portal_sync_auth,
+      captivePortalApi: defaultConfig.components.captive_portal_api || null,
       isAuthenticated: defaultConfig.isAuthenticated,
       cookies: ownProps.cookies,
-      language: defaultConfig.language,
+      language: state.language,
       defaultLanguage: defaultConfig.default_language,
+      internetMode: state.internetMode,
+      planExhausted: state.planExhausted,
     });
     const dispatch = jest.fn();
     result = mapDispatchToProps(dispatch);
@@ -1831,6 +1838,100 @@ describe("<Status /> interactions", () => {
     expect(result).toEqual();
     expect(getSessionInfo).not.toHaveBeenCalled();
   });
+  it("should not query captive portal API when feature is disabled", async () => {
+    props = createTestProps({
+      captivePortalApi: {
+        enabled: false,
+        url: "https://cp.example.org/.well-known/captive-portal",
+        timeout: 1500,
+      },
+    });
+    wrapper = shallow(<Status {...props} />, {
+      context: {setLoading: jest.fn()},
+      disableLifecycleMethods: true,
+    });
+
+    const result = await wrapper.instance().checkCaptivePortalApi();
+
+    expect(result).toBe(false);
+    expect(axios).not.toHaveBeenCalled();
+    expect(props.setInternetMode).not.toHaveBeenCalled();
+  });
+  it("should enable internet mode when captive portal API reports non-captive access", async () => {
+    axios.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        captive: false,
+      },
+    });
+    props = createTestProps({
+      captivePortalApi: {
+        enabled: true,
+        url: "https://cp.example.org/.well-known/captive-portal",
+        timeout: 1500,
+      },
+    });
+    wrapper = shallow(<Status {...props} />, {
+      context: {setLoading: jest.fn()},
+      disableLifecycleMethods: true,
+    });
+
+    const result = await wrapper.instance().checkCaptivePortalApi();
+
+    expect(result).toBe(true);
+    expect(axios).toHaveBeenCalledWith({
+      method: "get",
+      url: "https://cp.example.org/.well-known/captive-portal",
+      timeout: 1500,
+      headers: {
+        Accept: "application/captive+json",
+      },
+    });
+    expect(props.setInternetMode).toHaveBeenCalledWith(true);
+  });
+  it("should preserve current behavior when captive portal API reports captive access", async () => {
+    axios.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        captive: true,
+      },
+    });
+    props = createTestProps({
+      captivePortalApi: {
+        enabled: true,
+        url: "https://cp.example.org/.well-known/captive-portal",
+        timeout: 1500,
+      },
+    });
+    wrapper = shallow(<Status {...props} />, {
+      context: {setLoading: jest.fn()},
+      disableLifecycleMethods: true,
+    });
+
+    const result = await wrapper.instance().checkCaptivePortalApi();
+
+    expect(result).toBe(false);
+    expect(props.setInternetMode).not.toHaveBeenCalled();
+  });
+  it("should preserve current behavior when captive portal API request fails", async () => {
+    axios.mockRejectedValueOnce(new Error("network failure"));
+    props = createTestProps({
+      captivePortalApi: {
+        enabled: true,
+        url: "https://cp.example.org/.well-known/captive-portal",
+        timeout: 1500,
+      },
+    });
+    wrapper = shallow(<Status {...props} />, {
+      context: {setLoading: jest.fn()},
+      disableLifecycleMethods: true,
+    });
+
+    const result = await wrapper.instance().checkCaptivePortalApi();
+
+    expect(result).toBe(false);
+    expect(props.setInternetMode).not.toHaveBeenCalled();
+  });
   it("should call logout if getUserRadiusSessions is rejected (unauthorized or forbidden)", async () => {
     axios.mockImplementationOnce(() =>
       Promise.reject({
@@ -1939,6 +2040,39 @@ describe("<Status /> interactions", () => {
     await tick();
     expect(getUserRadiusUsageSpy).not.toHaveBeenCalled();
     expect(wrapper).toMatchSnapshot();
+  });
+  it("should skip radius usage in finalOperations when captive portal API enables internet mode", async () => {
+    props = createTestProps({
+      userData: {
+        ...responseData,
+        is_verified: true,
+      },
+    });
+    props.statusPage.radius_usage_enabled = true;
+    wrapper = shallow(<Status {...props} />, {
+      context: {setLoading: jest.fn()},
+      disableLifecycleMethods: true,
+    });
+    jest.spyOn(global, "setInterval").mockReturnValue(1);
+    jest
+      .spyOn(wrapper.instance(), "getUserActiveRadiusSessions")
+      .mockResolvedValue();
+    jest
+      .spyOn(wrapper.instance(), "getUserPastRadiusSessions")
+      .mockResolvedValue();
+    const getUserRadiusUsageSpy = jest
+      .spyOn(wrapper.instance(), "getUserRadiusUsage")
+      .mockResolvedValue();
+    jest
+      .spyOn(wrapper.instance(), "checkCaptivePortalApi")
+      .mockResolvedValue(true);
+    jest
+      .spyOn(wrapper.instance(), "updateSpinner")
+      .mockImplementation(() => {});
+
+    await wrapper.instance().finalOperations();
+
+    expect(getUserRadiusUsageSpy).not.toHaveBeenCalled();
   });
   it("should not display status-content when planExhausted is true", () => {
     const prop = createTestProps();

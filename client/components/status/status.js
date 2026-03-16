@@ -78,6 +78,7 @@ export default class Status extends React.Component {
     this.fetchMoreSessions = this.fetchMoreSessions.bind(this);
     this.updateScreenWidth = this.updateScreenWidth.bind(this);
     this.updateSpinner = this.updateSpinner.bind(this);
+    this.checkCaptivePortalApi = this.checkCaptivePortalApi.bind(this);
   }
 
   /**
@@ -303,6 +304,11 @@ export default class Status extends React.Component {
       return;
     }
 
+    const detectedInternetMode = internetMode
+      ? false
+      : await this.checkCaptivePortalApi();
+    const effectiveInternetMode = internetMode || detectedInternetMode;
+
     // if everything went fine, load the user sessions
     await this.getUserActiveRadiusSessions();
     await this.getUserPastRadiusSessions();
@@ -311,7 +317,7 @@ export default class Status extends React.Component {
       this.logoutIfCurrentRadiusSessionIsInactive();
     }, 60000);
     // We don't show radius usage in the internet mode.
-    if (statusPage.radius_usage_enabled && !internetMode) {
+    if (statusPage.radius_usage_enabled && !effectiveInternetMode) {
       await this.getUserRadiusUsage();
       this.usageIntervalId = setInterval(() => {
         this.getUserRadiusUsage();
@@ -320,6 +326,41 @@ export default class Status extends React.Component {
 
     window.addEventListener("resize", this.updateScreenWidth);
     this.updateSpinner();
+  }
+
+  async checkCaptivePortalApi() {
+    const {captivePortalApi, setInternetMode} = this.props;
+    if (
+      !captivePortalApi ||
+      captivePortalApi.enabled !== true ||
+      !captivePortalApi.url
+    ) {
+      return false;
+    }
+
+    try {
+      const response = await axios({
+        method: "get",
+        url: captivePortalApi.url,
+        timeout: captivePortalApi.timeout || 2000,
+        headers: {
+          Accept: "application/captive+json",
+        },
+      });
+
+      if (
+        response.status === 200 &&
+        response.data &&
+        response.data.captive === false
+      ) {
+        setInternetMode(true);
+        return true;
+      }
+    } catch {
+      //
+    }
+
+    return false;
   }
 
   async getUserRadiusSessions(params) {
@@ -1516,6 +1557,7 @@ Status.defaultProps = {
   isAuthenticated: false,
   internetMode: false,
   planExhausted: false,
+  captivePortalApi: null,
 };
 Status.propTypes = {
   statusPage: PropTypes.shape({
@@ -1536,6 +1578,11 @@ Status.propTypes = {
   userData: PropTypes.object.isRequired,
   internetMode: PropTypes.bool,
   planExhausted: PropTypes.bool,
+  captivePortalApi: PropTypes.shape({
+    enabled: PropTypes.bool,
+    url: PropTypes.string,
+    timeout: PropTypes.number,
+  }),
   cookies: PropTypes.instanceOf(Cookies).isRequired,
   logout: PropTypes.func.isRequired,
   captivePortalSyncAuth: PropTypes.bool.isRequired,
