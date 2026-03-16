@@ -14,6 +14,8 @@ const mapStateToProps = (state) => {
     termsAndConditions: conf.terms_and_conditions,
     orgSlug: conf.slug,
     orgName: conf.name,
+    isAuthenticated: conf.isAuthenticated,
+    userData: conf.userData,
   };
 };
 const mapDispatchToProps = (dispatch) => ({

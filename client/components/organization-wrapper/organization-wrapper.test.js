@@ -275,7 +275,13 @@ describe("<OrganizationWrapper /> interactions", () => {
     let element = pathMap[""];
     expect(element).toEqual(<Navigate to="/default/login" />);
     element = pathMap["registration/*"];
-    expect(element).toEqual(<Navigate to="/default/status" />);
+    expect(JSON.stringify(element)).toEqual(
+      JSON.stringify(
+        <Suspense fallback={<Loader />}>
+          <Registration loading={false} />
+        </Suspense>,
+      ),
+    );
     element = pathMap["mobile-phone-verification"];
     expect(element).toEqual(<Navigate to="/default/status" />);
     element = pathMap["password/reset/confirm/:uid/:token"];
@@ -485,8 +491,12 @@ describe("Test Organization Wrapper for authenticated and unverified users", () 
     let element = pathMap[""];
     expect(element).toEqual(<Navigate to="/default/login" />);
     element = pathMap["registration/*"];
-    expect(element).toEqual(
-      <Navigate to="/default/mobile-phone-verification" />,
+    expect(JSON.stringify(element)).toEqual(
+      JSON.stringify(
+        <Suspense fallback={<Loader />}>
+          <Registration loading={false} />
+        </Suspense>,
+      ),
     );
     element = pathMap["mobile-phone-verification"];
     const cookies = new Cookies();

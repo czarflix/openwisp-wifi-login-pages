@@ -19,12 +19,14 @@ import submitOnEnter from "../../utils/submit-on-enter";
 import PasswordToggleIcon from "../../utils/password-toggle";
 import mountComponent from "./test-utils";
 import InfoModal from "../../utils/modal";
+import needsVerify from "../../utils/needs-verify";
 
 jest.mock("../../utils/get-config");
 jest.mock("../../utils/load-translation");
 jest.mock("../../utils/submit-on-enter");
 jest.mock("../../utils/history");
 jest.mock("axios");
+jest.mock("../../utils/needs-verify");
 
 const createTestProps = (props, configName = "default") => {
   const config = getConfig(configName);
@@ -40,6 +42,8 @@ const createTestProps = (props, configName = "default") => {
     setTitle: jest.fn(),
     setUserData: jest.fn(),
     loading: false,
+    isAuthenticated: false,
+    userData: config.userData || {},
     match: {
       path: "default/registration",
     },
@@ -77,6 +81,32 @@ describe("<Registration /> rendering", () => {
       context: loadingContextValue,
     });
     expect(wrapper).toMatchSnapshot();
+  });
+
+  it("should redirect authenticated users to status", () => {
+    needsVerify.mockReturnValue(false);
+    props = createTestProps({
+      isAuthenticated: true,
+      userData: {...getConfig("default").userData, is_verified: true},
+    });
+    shallow(<Registration {...props} />, {
+      context: loadingContextValue,
+    });
+    expect(props.navigate).toHaveBeenCalledWith("/default/status");
+  });
+
+  it("should redirect authenticated users needing phone verification", () => {
+    needsVerify.mockReturnValue(true);
+    props = createTestProps({
+      isAuthenticated: true,
+      userData: {...getConfig("default").userData, is_verified: false},
+    });
+    shallow(<Registration {...props} />, {
+      context: loadingContextValue,
+    });
+    expect(props.navigate).toHaveBeenCalledWith(
+      "/default/mobile-phone-verification",
+    );
   });
 });
 

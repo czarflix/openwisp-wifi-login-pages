@@ -54,9 +54,14 @@ exports[`<OrganizationWrapper /> interactions should render main title if pageTi
         />
         <Route
           element={
-            <Navigate
-              to="/default/status"
-            />
+            <React.Suspense
+              fallback={<loader />}
+            >
+              <UNDEFINED
+                loading={false}
+                navigate={[MockFunction]}
+              />
+            </React.Suspense>
           }
           path="registration/*"
         />
@@ -284,9 +289,14 @@ exports[`<OrganizationWrapper /> interactions should render pageTitle if it is n
         />
         <Route
           element={
-            <Navigate
-              to="/default/status"
-            />
+            <React.Suspense
+              fallback={<loader />}
+            >
+              <UNDEFINED
+                loading={false}
+                navigate={[MockFunction]}
+              />
+            </React.Suspense>
           }
           path="registration/*"
         />
@@ -514,9 +524,14 @@ exports[`<OrganizationWrapper /> interactions should show route for authenticate
         />
         <Route
           element={
-            <Navigate
-              to="/default/status"
-            />
+            <React.Suspense
+              fallback={<loader />}
+            >
+              <UNDEFINED
+                loading={false}
+                navigate={[MockFunction]}
+              />
+            </React.Suspense>
           }
           path="registration/*"
         />
@@ -744,9 +759,14 @@ exports[`Test Organization Wrapper for authenticated and unverified users should
         />
         <Route
           element={
-            <Navigate
-              to="/default/mobile-phone-verification"
-            />
+            <React.Suspense
+              fallback={<loader />}
+            >
+              <UNDEFINED
+                loading={false}
+                navigate={[MockFunction]}
+              />
+            </React.Suspense>
           }
           path="registration/*"
         />
