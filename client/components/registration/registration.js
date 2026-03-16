@@ -82,12 +82,7 @@ export default class Registration extends React.Component {
     } = this.props;
     const {setLoading} = this.context;
 
-    if (isAuthenticated) {
-      if (needsVerify("mobile_phone", userData, settings)) {
-        navigate(`/${orgSlug}/mobile-phone-verification`);
-      } else {
-        navigate(`/${orgSlug}/status`);
-      }
+    if (this.redirectAuthenticatedUser()) {
       return;
     }
 
@@ -100,10 +95,36 @@ export default class Registration extends React.Component {
     this.autoSelectFirstPlan();
   }
 
+  redirectAuthenticatedUser() {
+    const {isAuthenticated, navigate, orgSlug, settings, userData} = this.props;
+
+    if (!isAuthenticated) {
+      return false;
+    }
+
+    if (needsVerify("mobile_phone", userData, settings)) {
+      navigate(`/${orgSlug}/mobile-phone-verification`);
+    } else {
+      navigate(`/${orgSlug}/status`);
+    }
+
+    return true;
+  }
+
   async componentDidUpdate(prevProps) {
     const {plans} = this.state;
-    const {settings, loading} = this.props;
+    const {isAuthenticated, settings, loading, userData} = this.props;
     const {setLoading} = this.context;
+    const authChanged = prevProps.isAuthenticated !== isAuthenticated;
+    const verifyStateChanged =
+      isAuthenticated &&
+      needsVerify("mobile_phone", prevProps.userData, prevProps.settings) !==
+        needsVerify("mobile_phone", userData, settings);
+
+    if (authChanged || verifyStateChanged) {
+      this.redirectAuthenticatedUser();
+    }
+
     if (
       settings.subscriptions &&
       plans.length === 0 &&

@@ -108,6 +108,23 @@ describe("<Registration /> rendering", () => {
       "/default/mobile-phone-verification",
     );
   });
+
+  it("should redirect to status when authentication changes after mount", () => {
+    needsVerify.mockReturnValue(false);
+    props = createTestProps({
+      isAuthenticated: false,
+      userData: {...getConfig("default").userData, is_verified: false},
+    });
+    wrapper = shallow(<Registration {...props} />, {
+      context: loadingContextValue,
+    });
+    props.navigate.mockClear();
+    wrapper.setProps({
+      isAuthenticated: true,
+      userData: {...getConfig("default").userData, is_verified: true},
+    });
+    expect(props.navigate).toHaveBeenCalledWith("/default/status");
+  });
 });
 
 describe("<Registration /> interactions", () => {
