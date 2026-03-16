@@ -22,22 +22,14 @@ export default class Header extends React.Component {
   }
 
   handleHamburger() {
-    const {menu} = this.state;
-    this.setState({
+    this.setState(({menu}) => ({
       menu: !menu,
-    });
+    }));
   }
 
   handleKeyUp(event) {
-    const {menu} = this.state;
-    switch (event.keyCode) {
-      case 13:
-        this.setState({
-          menu: !menu,
-        });
-        break;
-      default:
-        break;
+    if (event.keyCode === 13) {
+      this.handleHamburger();
     }
   }
 
@@ -61,203 +53,123 @@ export default class Header extends React.Component {
     ) : null;
   };
 
-  render() {
-    const {menu} = this.state;
-    const {
-      header,
-      languages,
-      language,
-      orgSlug,
-      setLanguage,
-      location,
-      isAuthenticated,
-      userData,
-    } = this.props;
-    const {logo, links, second_logo: secondLogo} = header;
+  getVisibleLinks = () => {
+    const {header, isAuthenticated, userData} = this.props;
+    return (header.links || []).filter((link) =>
+      shouldLinkBeShown(link, isAuthenticated, userData),
+    );
+  };
+
+  renderHeaderLinks() {
+    const {language, orgSlug, location, isAuthenticated} = this.props;
     const {pathname} = location;
     const internalLinks = [`/${orgSlug}/login`, `/${orgSlug}/registration`];
+
+    return this.getVisibleLinks().map((link, index) => {
+      const resolvedUrl = link.url.replace("{orgSlug}", orgSlug);
+      const isInternal =
+        isInternalLink(link.url) &&
+        (internalLinks.indexOf(resolvedUrl) < 0 || !isAuthenticated);
+      const activeClass = pathname === resolvedUrl ? "active" : "";
+      const linkClassName = `header-link header-link-${index + 1} ${activeClass} button`;
+
+      if (isInternal) {
+        return (
+          <Link className={linkClassName} to={resolvedUrl} key={resolvedUrl}>
+            {getText(link.text, language)}
+          </Link>
+        );
+      }
+
+      return (
+        <a
+          href={isInternalLink(link.url) ? resolvedUrl : link.url}
+          className={linkClassName}
+          target={isInternal ? undefined : "_blank"}
+          rel={isInternal ? undefined : "noreferrer noopener"}
+          key={resolvedUrl}
+        >
+          {getText(link.text, language)}
+        </a>
+      );
+    });
+  }
+
+  renderLanguageButtons() {
+    const {languages, language, setLanguage} = this.props;
+
+    return languages.map((lang) => (
+      <button
+        type="button"
+        className={`${
+          language === lang.slug ? "active " : ""
+        }header-language-btn header-language-btn-${lang.slug}`}
+        key={lang.slug}
+        onClick={() => setLanguage(lang.slug)}
+      >
+        {lang.text}
+      </button>
+    ));
+  }
+
+  render() {
+    const {menu} = this.state;
+    const {header, orgSlug, language} = this.props;
+    const {logo, second_logo: secondLogo} = header;
+    const navStateClass = menu ? "menu-open" : "menu-closed";
+
     return (
       <>
-        <div className="header-container header-desktop">
+        <div className="header-container">
           <div className="header-row-1">
             <div className="header-row-1-inner">
-              <div className="header-left">
+              <div className="header-branding">
                 <div className="header-logo-div">
-                  {logo && logo.url ? (
+                  {logo?.url ? (
                     <Link to={`/${orgSlug}`}>
                       <img
                         src={getAssetPath(orgSlug, logo.url)}
                         alt={logo.alternate_text}
-                        className="header-logo-image header-desktop-logo-image"
+                        className="header-logo-image"
                       />
                     </Link>
                   ) : null}
                 </div>
+                {secondLogo?.url ? (
+                  <div className="header-logo-2">
+                    <img
+                      src={getAssetPath(orgSlug, secondLogo.url)}
+                      alt={secondLogo.alternate_text || ""}
+                      className="header-logo-image"
+                    />
+                  </div>
+                ) : null}
               </div>
 
-              {secondLogo && (
-                <div className="header-logo-2">
-                  <img
-                    src={getAssetPath(orgSlug, secondLogo.url)}
-                    alt={secondLogo.alternate_text}
-                    className="header-logo-image header-desktop-logo-image"
-                  />
-                </div>
-              )}
-
-              <div className="header-right">
-                {languages.map((lang) => (
-                  <button
-                    type="button"
-                    className={`${
-                      language === lang.slug ? "active " : ""
-                    }header-language-btn header-desktop-language-btn header-language-btn-${
-                      lang.slug
-                    }`}
-                    key={lang.slug}
-                    onClick={() => setLanguage(lang.slug)}
-                  >
-                    {lang.text}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="header-row-2">
-            <div className="header-row-2-inner">
-              {links &&
-                links.map((link, index) => {
-                  if (!shouldLinkBeShown(link, isAuthenticated, userData)) {
-                    return null;
-                  }
-                  if (
-                    isInternalLink(link.url) &&
-                    (internalLinks.indexOf(link.url) < 0 || !isAuthenticated)
-                  ) {
-                    return (
-                      <Link
-                        className={`header-link header-desktop-link
-                  header-link-${index + 1} ${
-                    pathname === link.url.replace("{orgSlug}", orgSlug)
-                      ? "active"
-                      : ""
-                  } button `}
-                        to={link.url.replace("{orgSlug}", orgSlug)}
-                        key={index}
-                      >
-                        {getText(link.text, language)}
-                      </Link>
-                    );
-                  }
-                  return (
-                    <a
-                      href={link.url}
-                      className={`header-link header-desktop-link
-                    header-link-${index + 1} button`}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      key={link.url}
-                    >
-                      {getText(link.text, language)}
-                    </a>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-        <div className="header-mobile ">
-          <div className="header-row-1">
-            <div className="header-row-1-inner">
-              <div className="header-left">
-                <div className="header-logo-div">
-                  {logo && logo.url ? (
-                    <Link to={`/${orgSlug}`}>
-                      <img
-                        src={getAssetPath(orgSlug, logo.url)}
-                        alt={logo.alternate_text}
-                        className="header-logo-image header-mobile-logo-image"
-                      />
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-              {secondLogo && (
-                <div className="header-logo-2">
-                  <img
-                    src={getAssetPath(orgSlug, secondLogo.url)}
-                    alt={secondLogo.alternate_text}
-                    className="header-logo-image header-mobile-logo-image"
-                  />
-                </div>
-              )}
-              <div className="header-right">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="header-hamburger"
+              <div className="header-controls">
+                <button
+                  type="button"
+                  className={`header-hamburger ${menu ? "is-open" : ""}`}
                   onClick={this.handleHamburger}
                   onKeyUp={this.handleKeyUp}
                   aria-label={getText({en: "Menu Button"}, language)}
+                  aria-expanded={menu}
                 >
                   <div className={`${menu ? "rot45" : ""}`} />
                   <div className={`${menu ? "rot-45" : ""}`} />
                   <div className={`${menu ? "opacity-hidden" : ""}`} />
-                </div>
+                </button>
               </div>
             </div>
           </div>
-          <div
-            className={`${menu ? "display-flex" : "display-none"} header-mobile-menu`}
-          >
-            {links &&
-              links.map((link, index) => {
-                if (shouldLinkBeShown(link, isAuthenticated, userData)) {
-                  if (isInternalLink(link.url)) {
-                    return (
-                      <Link
-                        className={`header-link mobile-link
-                    header-link-${index + 1} ${
-                      pathname === link.url.replace("{orgSlug}", orgSlug)
-                        ? "active"
-                        : ""
-                    } button`}
-                        to={link.url.replace("{orgSlug}", orgSlug)}
-                        key={index}
-                      >
-                        {getText(link.text, language)}
-                      </Link>
-                    );
-                  }
-                  return (
-                    <a
-                      href={link.url}
-                      className={`header-link mobile-link
-                      header-link-${index + 1} button`}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      key={link.url}
-                    >
-                      {getText(link.text, language)}
-                    </a>
-                  );
-                }
-                return null;
-              })}
-            <div className="mobile-languages-row">
-              {languages.map((lang) => (
-                <button
-                  type="button"
-                  className={`${
-                    language === lang.slug ? "active " : ""
-                  }header-language-btn header-mobile-language-btn header-language-btn-${
-                    lang.slug
-                  }`}
-                  key={lang.slug}
-                  onClick={() => setLanguage(lang.slug)}
-                >
-                  {lang.text}
-                </button>
-              ))}
+          <div className={`header-row-2 header-navigation ${navStateClass}`}>
+            <div className="header-row-2-inner">
+              <div className="header-link-group">
+                {this.renderHeaderLinks()}
+              </div>
+              <div className="header-language-group">
+                {this.renderLanguageButtons()}
+              </div>
             </div>
           </div>
         </div>
@@ -266,34 +178,19 @@ export default class Header extends React.Component {
     );
   }
 }
+
+Header.propTypes = {
+  header: PropTypes.object.isRequired,
+  languages: PropTypes.array.isRequired,
+  language: PropTypes.string.isRequired,
+  orgSlug: PropTypes.string.isRequired,
+  setLanguage: PropTypes.func.isRequired,
+  location: PropTypes.object.isRequired,
+  isAuthenticated: PropTypes.bool,
+  userData: PropTypes.object,
+};
+
 Header.defaultProps = {
   isAuthenticated: false,
-};
-Header.propTypes = {
-  header: PropTypes.shape({
-    logo: PropTypes.shape({
-      alternate_text: PropTypes.string,
-      url: PropTypes.string,
-    }),
-    second_logo: PropTypes.shape({
-      alternate_text: PropTypes.string,
-      url: PropTypes.string,
-    }),
-    links: PropTypes.array,
-    sticky_html: PropTypes.object,
-  }).isRequired,
-  language: PropTypes.string.isRequired,
-  languages: PropTypes.arrayOf(
-    PropTypes.shape({
-      slug: PropTypes.string,
-      text: PropTypes.string,
-    }),
-  ).isRequired,
-  setLanguage: PropTypes.func.isRequired,
-  orgSlug: PropTypes.string.isRequired,
-  location: PropTypes.shape({
-    pathname: PropTypes.string,
-  }).isRequired,
-  isAuthenticated: PropTypes.bool,
-  userData: PropTypes.object.isRequired,
+  userData: {},
 };
